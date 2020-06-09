@@ -1,3 +1,6 @@
+[submodule "donkeycar/contrib/keras-coordconv"]
+	path = donkeycar/contrib/keras-coordconv
+	url = https://github.com/titu1994/keras-coordconv
 [submodule "gym-donkeycar"]
 	path = gym-donkeycar
 	url = https://github.com/tawnkramer/gym-donkeycar
