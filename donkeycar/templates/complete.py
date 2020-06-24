@@ -4,7 +4,7 @@ Scripts to drive a donkey 2 car
 
 Usage:
     manage.py (drive) [--model=<model>] [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>]
-    manage.py (drive-many) [--model=<model>...] [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>]
+    manage.py (drive-many) --model=<model>... [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>] [--port=<port>] [--simpath=<simpath>]
     manage.py (train) [--tub=<tub1,tub2,..tubn>] [--file=<file> ...] (--model=<model>) [--transfer=<model>] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer)] [--continuous] [--aug] [--myconfig=<filename>]
 
 
@@ -613,43 +613,38 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             max_loop_count=cfg.MAX_LOOPS)
 
 
-def drive_many(model, port, simpath):
-    def drive_model(loop):
-        asyncio.set_event_loop(loop)
-        drive(cfg, model_path=model, use_joystick=args['--js'],
-              model_type=model_type, camera_type=camera_type,
-              meta=args['--meta'],
-              port=port,
-              simpath=simpath)
-    loop = asyncio.new_event_loop()
-    car = threading.Thread(target=drive_model, args=(loop, ))
-    car.start()
-
-
 if __name__ == '__main__':
     args = docopt(__doc__)
     cfg = dk.load_config(myconfig=args['--myconfig'])
 
-    if args['drive']:
+    if (args['drive'] or args['drive-many']):
         model_type = args['--type']
         camera_type = args['--camera']
-
-        drive(cfg, model_path=args['--model'], use_joystick=args['--js'],
-              model_type=model_type, camera_type=camera_type,
-              meta=args['--meta'])
-
-    if args['drive-many']:
+        port = int(args['--port']) or cfg.WEB_CONTROL_PORT
+        simpath = args['--simpath'] or cfg.DONKEY_SIM_PATH
+        meta = args['--meta']
+        js = args['--js']
         models = args['--model']
 
-        model_type = args['--type']
-        camera_type = args['--camera']
-        port = cfg.WEB_CONTROL_PORT
-        simpath = cfg.DONKEY_SIM_PATH
-
-        for model in models:
-            drive_many(model, port, simpath)
-            simpath = 'remote'
-            port += 1
+        if len(models) > 1:
+            # Run models in parallel
+            for model in models:
+                def drive_model(loop):
+                    asyncio.set_event_loop(loop)
+                    drive(cfg, model_path=model, use_joystick=js,
+                          model_type=model_type, camera_type=camera_type,
+                          meta=meta,
+                          port=port,
+                          simpath=simpath)
+                loop = asyncio.new_event_loop()
+                car = threading.Thread(target=drive_model, args=(loop, ))
+                car.start()
+                simpath = 'remote'
+                port += 1
+        else:
+            drive(cfg, model_path=models, use_joystick=js,
+                  model_type=model_type, camera_type=camera_type,
+                  meta=meta)
 
     if args['train']:
         from train import multi_train, preprocessFileList
