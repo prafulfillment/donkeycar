@@ -629,17 +629,24 @@ if __name__ == '__main__':
         if len(models) > 1:
             # Run models in parallel
             for model in models:
-                def drive_model(loop):
+
+                def drive_model(loop, simpath):
                     asyncio.set_event_loop(loop)
                     drive(cfg, model_path=model, use_joystick=js,
                           model_type=model_type, camera_type=camera_type,
                           meta=meta,
                           port=port,
                           simpath=simpath)
+
                 loop = asyncio.new_event_loop()
-                car = threading.Thread(target=drive_model, args=(loop, ))
+                # Explicitly send arguments that update during this loop
+                car = threading.Thread(target=drive_model, args=(loop, simpath, ))
                 car.start()
+
+                # To prevent future Unity windows from starting, 
+                # tell DonkeyCar Gym that this instance is running remote
                 simpath = 'remote'
+                # Update port for each new service
                 port += 1
         else:
             drive(cfg, model_path=models, use_joystick=js,
@@ -662,4 +669,3 @@ if __name__ == '__main__':
             dirs.extend( tub_paths )
 
         multi_train(cfg, dirs, model, transfer, model_type, continuous, aug)
-
