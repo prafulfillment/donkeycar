@@ -38,7 +38,7 @@ from donkeycar.parts.launch import AiLaunch
 from donkeycar.utils import *
 
 
-def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type='single', meta=[], port=None):
+def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type='single', meta=[], port=None, simpath=None):
     '''
     Construct a working robotic vehicle from many parts.
     Each part runs as a job in the Vehicle loop, calling either
@@ -49,6 +49,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
     to parts requesting the same named input.
     '''
     port = port or cfg.WEB_CONTROL_PORT
+    simpath = simpath or cfg.DONKEY_SIM_PATH
 
     if cfg.DONKEY_GYM:
         #the simulator will use cuda and then we usually run out of resources
@@ -111,7 +112,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         threaded = True
         if cfg.DONKEY_GYM:
             from donkeycar.parts.dgym import DonkeyGymEnv
-            cam = DonkeyGymEnv(cfg.DONKEY_SIM_PATH, host=cfg.SIM_HOST, env_name=cfg.DONKEY_GYM_ENV_NAME, conf=cfg.GYM_CONF, delay=cfg.SIM_ARTIFICIAL_LATENCY)
+            cam = DonkeyGymEnv(simpath, host=cfg.SIM_HOST, env_name=cfg.DONKEY_GYM_ENV_NAME, conf=cfg.GYM_CONF, delay=cfg.SIM_ARTIFICIAL_LATENCY)
             threaded = True
             inputs = ['angle', 'throttle']
         elif cfg.CAMERA_TYPE == "PICAM":
@@ -612,13 +613,14 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             max_loop_count=cfg.MAX_LOOPS)
 
 
-def drive_many(model, port):
+def drive_many(model, port, simpath):
     def drive_model(loop):
         asyncio.set_event_loop(loop)
         drive(cfg, model_path=model, use_joystick=args['--js'],
               model_type=model_type, camera_type=camera_type,
               meta=args['--meta'],
-              port=port)
+              port=port,
+              simpath=simpath)
     loop = asyncio.new_event_loop()
     car = threading.Thread(target=drive_model, args=(loop, ))
     car.start()
@@ -641,10 +643,12 @@ if __name__ == '__main__':
 
         model_type = args['--type']
         camera_type = args['--camera']
-        port = cfg.WEB_CONTROL_PORT or 8000
+        port = cfg.WEB_CONTROL_PORT
+        simpath = cfg.DONKEY_SIM_PATH
 
         for model in models:
-            drive_many(model, port)
+            drive_many(model, port, simpath)
+            simpath = 'remote'
             port += 1
 
     if args['train']:
