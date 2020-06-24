@@ -648,6 +648,8 @@ if __name__ == '__main__':
 
         for model in models:
             drive_many(model, port, simpath)
+           # To prevent future Unity windows from starting, 
+           # tell DonkeyCar Gym that this instance is running remote
             simpath = 'remote'
             port += 1
 
@@ -667,4 +669,3 @@ if __name__ == '__main__':
             dirs.extend( tub_paths )
 
         multi_train(cfg, dirs, model, transfer, model_type, continuous, aug)
-
