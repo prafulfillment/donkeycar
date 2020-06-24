@@ -3,7 +3,7 @@
 Scripts to drive a donkey 2 car
 
 Usage:
-    manage.py (drive) [--model=<model>] [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>] [--port=<port>] [--simpath=<simpath>]
+    manage.py (drive) [--model=<model>] [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>]
     manage.py (drive-many) --model=<model>... [--js] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer|latent)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>] [--port=<port>] [--simpath=<simpath>]
     manage.py (train) [--tub=<tub1,tub2,..tubn>] [--file=<file> ...] (--model=<model>) [--transfer=<model>] [--type=(linear|categorical|rnn|imu|behavior|3d|localizer)] [--continuous] [--aug] [--myconfig=<filename>]
 
@@ -620,7 +620,9 @@ if __name__ == '__main__':
     if (args['drive'] or args['drive-many']):
         model_type = args['--type']
         camera_type = args['--camera']
-        port = int(args['--port']) or cfg.WEB_CONTROL_PORT
+
+        # Force port to be an int
+        port = int(args['--port'] or cfg.WEB_CONTROL_PORT)
         simpath = args['--simpath'] or cfg.DONKEY_SIM_PATH
         meta = args['--meta']
         js = args['--js']
@@ -629,24 +631,17 @@ if __name__ == '__main__':
         if len(models) > 1:
             # Run models in parallel
             for model in models:
-
-                def drive_model(loop, simpath):
+                def drive_model(loop):
                     asyncio.set_event_loop(loop)
                     drive(cfg, model_path=model, use_joystick=js,
                           model_type=model_type, camera_type=camera_type,
                           meta=meta,
                           port=port,
                           simpath=simpath)
-
                 loop = asyncio.new_event_loop()
-                # Explicitly send arguments that update during this loop
-                car = threading.Thread(target=drive_model, args=(loop, simpath, ))
+                car = threading.Thread(target=drive_model, args=(loop, ))
                 car.start()
-
-                # To prevent future Unity windows from starting, 
-                # tell DonkeyCar Gym that this instance is running remote
                 simpath = 'remote'
-                # Update port for each new service
                 port += 1
         else:
             drive(cfg, model_path=models, use_joystick=js,
@@ -669,3 +664,4 @@ if __name__ == '__main__':
             dirs.extend( tub_paths )
 
         multi_train(cfg, dirs, model, transfer, model_type, continuous, aug)
+
